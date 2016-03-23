@@ -1,0 +1,22 @@
+对象优先在Eden分配
+	大多数情况下，对象在新生代Eden区中分分配．当Eden区已没有足够空间进行分配时，虚拟机将发起一次 Minor　GC.
+	新生代GC(Minor GC)：指发生在新生代的垃圾收集动作，因为Java对象大多数都具备朝生夕灭的特征，所以Minor　GC　非常频繁，一般回收速度也比较快．
+	老年代GC(Major GC ／　Full GC)：指发生在老年代的GC出现了Major GC,经常会伴随至少一次的Minor GC(但并不是绝对的，在Parallel Scavenge收集器策略里就直接进行Major GC的策略选择过程)．Major GC 的速度一般比Minor GC慢10倍以上．
+
+
+大对象直接进入老年
+	大对象是指需要大量连续内存空间的Java对象，最典型的大对象就是那种很长的字符串以及数组．
+	虚拟机提供了一个 -XX:PretenureSizeThreshold　参数，令大于这个设置值的对象直接在老年代分配．这样做的目的是避免在Eden区及两个Survivor区之间发生大量的内存复制．
+
+
+长期存活对象将进入老年代
+	虚拟机给每个对象定义类一个对象年龄计数器．如果对象在Eden出生并经过第一次Minor　Gc后仍然存活，并且能被Survivor容纳的话，将被移动到Survivor空间中，并且对象年龄设置为１.对象在Survivor区中每经过一次Minor GC，年龄增加１岁，当他的年龄增加到一定程度(默认值为15)，就会别晋升到老年代中．对象晋升老年代的年龄阀值，可以通过参数　-XX:MaxTenuringThreshold设置．
+
+
+动态对象年龄判定
+	为了能更好地适应不同程序的内存状况，虚拟机并不是永远地要求对象的年龄必须达到了MaxTenuringThreshold才能晋升老年代，如果在Survivor空间中相同年龄下所有对象大小的总和大于Survivor空间的一半，年龄大于或等于该年龄的对象就可以直接进入老年代，无需等到MaxTenuringThreshold中要求的年龄．
+
+
+空间分配担保
+	在发生Minor GC之前，虚拟机会先检查老年代最大可用的连续空间是否大于新生代所有对象总空间，如果这个条件成立，那么Minor GC可以确保是安全的．如果不成立，则虚拟机会查看HandlePromotionFailure设置是否允许担保失败．如果允许，那么会继续检查老年代最大引用的连续空间是否大于历次晋升到老年代对象的平均大小．如果大于，将尝试进行一次Minor GC，尽管这次Minor　GC是有风险的．如果小于，或者HandlePromotionFailure设置不允许冒险，那这时也要改为进行一次Full GC.
+
